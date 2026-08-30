@@ -1,0 +1,71 @@
+services:
+
+  forgecrm-db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forgechat}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  forgecrm-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3011"
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-forgechat}@forgecrm-db:5432/postgres
+      REDIS_URL: redis://redis:6379
+      FORGECHAT_DATA_DIR: /app/data
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - secrets:/app/data
+      - media:/app/media
+      - uploads:/app/uploads
+    depends_on:
+      forgecrm-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  forgecrm-frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - forgecrm-backend
+
+volumes:
+  pgdata:
+  redisdata:
+  secrets:
+  media:
+  uploads:
