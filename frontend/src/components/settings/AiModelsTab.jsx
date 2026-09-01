@@ -3,6 +3,7 @@ import { Plus, Trash2, Loader2, Eye, EyeOff, KeyRound, Bot, RefreshCw } from 'lu
 import { api } from '../../api.js';
 import { C, FONT, MONO } from '../../constants.js';
 import DeleteConfirmModal from '../DeleteConfirmModal.jsx';
+import { MODEL_CATALOG } from '../agents/modelCatalog.js';
 
 /**
  * Integrations → AI Models.
@@ -176,6 +177,34 @@ function AddModelForm({ onCancel, onCreated, onError }) {
               {p.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div style={{
+        marginBottom: 14, padding: '12px 14px', borderRadius: 10,
+        background: 'var(--c-surfaceAlt)', border: `1px dashed ${C.border}`,
+      }}>
+        <FieldLabel>Models this key unlocks</FieldLabel>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {(MODEL_CATALOG[provider] || []).map(m => (
+            <span
+              key={m.value}
+              style={{
+                fontSize: 11, fontFamily: MONO, padding: '4px 8px', borderRadius: 6,
+                background: C.cardBg, border: `1px solid ${C.border}`, color: C.text,
+              }}
+            >
+              {m.value}
+            </span>
+          ))}
+        </div>
+        {provider === 'openrouter' && (
+          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+            OpenRouter also accepts <span style={{ fontFamily: MONO }}>any</span> model slug (private &amp; free models too).
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4, lineHeight: 1.5 }}>
+          Each agent picks one of these in <b>Agents → Model section</b> — this form only stores the key.
         </div>
       </div>
 
