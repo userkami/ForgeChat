@@ -49,6 +49,10 @@ export default function AgentEditor({ agentId, waAccounts, user, navigate, onDon
   const [pendingDelete, setPendingDelete] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [bdaUsers, setBdaUsers] = useState([]); // eligible users for handoff round-robin
+  // Custom-model-slug entry (OpenRouter): lets the user type any
+  // `provider/model` slug instead of picking from the curated presets.
+  const [customModelOpen, setCustomModelOpen] = useState(false);
+  const [customModelSlug, setCustomModelSlug] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -454,7 +458,50 @@ export default function AgentEditor({ agentId, waAccounts, user, navigate, onDon
                     onChange={(val) => setForm(f => ({ ...f, llmModel: val }))}
                     placeholder="— Select —"
                     options={modelOptions.map(m => ({ value: m.value, label: m.label }))}
+                    createLabel={selectedModelRow.provider === 'openrouter' ? 'Enter a custom model slug…' : undefined}
+                    onCreate={selectedModelRow.provider === 'openrouter' ? () => setCustomModelOpen(true) : undefined}
                   />
+                  {customModelOpen && selectedModelRow.provider === 'openrouter' && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <input
+                        value={customModelSlug}
+                        onChange={e => setCustomModelSlug(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && customModelSlug.trim()) {
+                            setForm(f => ({ ...f, llmModel: customModelSlug.trim() }));
+                            setCustomModelSlug('');
+                            setCustomModelOpen(false);
+                          }
+                        }}
+                        placeholder="e.g. anthropic/claude-sonnet-5, my-private/model"
+                        autoFocus
+                        spellCheck={false}
+                        style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: MONO, fontSize: 12.5 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customModelSlug.trim()) {
+                            setForm(f => ({ ...f, llmModel: customModelSlug.trim() }));
+                            setCustomModelSlug('');
+                            setCustomModelOpen(false);
+                          }
+                        }}
+                        style={{
+                          padding: '0 14px', borderRadius: 8, border: 'none',
+                          background: C.primary, color: '#fff', fontSize: 12.5,
+                          fontFamily: FONT, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                        }}
+                      >
+                        Use model
+                      </button>
+                    </div>
+                  )}
+                  {selectedModelRow.provider === 'openrouter' && (
+                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>
+                      OpenRouter accepts any <span style={{ fontFamily: MONO }}>provider/model</span> slug — pick a preset above or enter your own (private &amp; free models work too).
+                    </div>
+                  )}
                 </Field>
               </FieldRow>
             )}

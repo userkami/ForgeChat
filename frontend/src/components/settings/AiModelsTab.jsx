@@ -10,12 +10,15 @@ import DeleteConfirmModal from '../DeleteConfirmModal.jsx';
  * Workspace-wide LLM provider credentials. Each row is one (provider, API key)
  * the workspace has connected; AI Agents reference a row instead of carrying
  * their own key, so a key is pasted once here and rotating it updates every
- * agent. v1 supports the two providers the engine has tool-use adapters for.
+ * agent. v1 supports the providers the engine has tool-use adapters for:
+ * Anthropic, OpenAI and OpenRouter (plus a custom base URL for self-hosted
+ * OpenAI-compatible gateways).
  */
 
 const PROVIDERS = [
   { value: 'anthropic', label: 'Anthropic Claude', hint: 'sk-ant-…' },
   { value: 'openai', label: 'OpenAI', hint: 'sk-…' },
+  { value: 'openrouter', label: 'OpenRouter', hint: 'sk-or-…' },
 ];
 
 const PROVIDER_LABELS = Object.fromEntries(PROVIDERS.map(p => [p.value, p.label]));
@@ -59,7 +62,7 @@ export default function AiModelsTab() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, margin: 0, letterSpacing: '-.02em' }}>AI Models</h1>
             <p style={{ fontSize: 12, color: C.textMuted, margin: '4px 0 0' }}>
-              Connect an Anthropic or OpenAI key once. AI Agents pick a connected provider — no per-agent keys.
+              Connect an Anthropic, OpenAI or OpenRouter key once. AI Agents pick a connected provider — no per-agent keys.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -123,6 +126,7 @@ function AddModelForm({ onCancel, onCreated, onError }) {
   const [provider, setProvider] = useState('anthropic');
   const [label, setLabel] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -133,7 +137,12 @@ function AddModelForm({ onCancel, onCreated, onError }) {
     setSaving(true);
     onError('');
     try {
-      await api.aiModels.create({ provider, label: label.trim() || null, apiKey: apiKey.trim() });
+      await api.aiModels.create({
+        provider,
+        label: label.trim() || null,
+        apiKey: apiKey.trim(),
+        baseUrl: baseUrl.trim() || undefined,
+      });
       onCreated();
     } catch (e) {
       onError(prettyError(e));
@@ -208,6 +217,19 @@ function AddModelForm({ onCancel, onCreated, onError }) {
         </div>
       </div>
 
+      <div style={{ marginBottom: 18 }}>
+        <FieldLabel>API Base URL (optional)</FieldLabel>
+        <input
+          value={baseUrl}
+          onChange={e => setBaseUrl(e.target.value)}
+          placeholder={provider === 'openrouter' ? 'Default: https://openrouter.ai/api/v1 — leave blank' : 'e.g. https://api.moonshot.ai/v1'}
+          style={{ ...inputStyle, fontFamily: MONO }}
+        />
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>
+          Overrides the provider endpoint (self-hosted OpenAI-compatible gateways, SiliconFlow, Moonshot, …). Leave blank for the default.
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button onClick={onCancel} style={ghostBtn(false)}>Cancel</button>
         <button onClick={handleSave} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.7 : 1 }}>
@@ -270,7 +292,7 @@ function EmptyState({ onAdd }) {
       </div>
       <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>No AI models connected</div>
       <p style={{ fontSize: 13, color: C.textSecondary, margin: '0 0 18px', lineHeight: 1.55 }}>
-        Add an Anthropic or OpenAI key so your AI Agents have a model to run.
+        Add an Anthropic, OpenAI or OpenRouter key so your AI Agents have a model to run.
       </p>
       <button onClick={onAdd} style={{ ...primaryBtn, margin: '0 auto' }}>
         <Plus size={14} /> Add AI model

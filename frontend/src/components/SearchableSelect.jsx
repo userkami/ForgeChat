@@ -94,7 +94,7 @@ export default function SearchableSelect({
         }}
       >
         <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : (value != null && String(value) !== '' ? String(value) : placeholder)}
         </span>
         <ChevronDown size={14} color={C.textMuted} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
       </button>

@@ -137,7 +137,7 @@ Build flow:
 
 **MCP tools available** — discovery: `list_wa_accounts`, `list_models`, `list_google_accounts`, `search_spreadsheets`, `list_sheet_tabs`, `read_sheet_values`, `list_media`, `list_templates`, `get_template`, `list_agents`, `get_agent`. Mutations: `create_agent`, `update_agent`, `add_google_sheets_tool`, `add_http_tool`, `add_tool`, `update_tool`, `delete_tool`, `delete_agent`. The master switch + per-capability toggles in Admin Settings → MCP Tools gate what's allowed (a disabled capability returns 403); always confirm destructive actions first.
 
-**Constraints to respect** (the server enforces them too): OpenAI / Anthropic providers only; one active agent per WhatsApp number; a keyword-triggered active agent needs a keyword; context window 1–100 messages; max tool iterations 1–20; trigger session 1–1440 minutes; `acceptImages` requires a vision-capable model.
+**Constraints to respect** (the server enforces them too): OpenAI / Anthropic / OpenRouter providers only; one active agent per WhatsApp number; a keyword-triggered active agent needs a keyword; context window 1–100 messages; max tool iterations 1–20; trigger session 1–1440 minutes; `acceptImages` requires a vision-capable model.
 
 ---
 

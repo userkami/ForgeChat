@@ -23,10 +23,12 @@
 
 const anthropic = require('./anthropic');
 const openai = require('./openai');
+const openrouter = require('./openrouter');
 
 const PROVIDERS = {
   anthropic,
   openai,
+  openrouter,
 };
 
 function getProvider(name) {

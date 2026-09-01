@@ -12,7 +12,7 @@ import AiModelsTab from './AiModelsTab.jsx';
  * integration's own detail page (its API/credentials and what's connected),
  * routed via the hash: #/admin-settings/integrations/<key>. The two cards:
  *   - Google     → Google Sheets/Calendar/Gmail accounts (OAuth)
- *   - AI Models  → Anthropic / OpenAI provider keys
+ *   - AI Models  → Anthropic / OpenAI / OpenRouter provider keys
  *
  * Deep links (e.g. the Google OAuth callback redirecting to
  * .../integrations/google?google=connected) land directly on the detail view.
@@ -121,7 +121,7 @@ function CardGrid({ onOpen }) {
           Once connected, your AI Agents and automations can call into them:
           <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
             <li><b>Google Sheets</b> — agents read &amp; write rows during a conversation.</li>
-            <li><b>AI Models</b> — agents run on your connected Anthropic / OpenAI provider.</li>
+            <li><b>AI Models</b> — agents run on your connected Anthropic / OpenAI / OpenRouter provider.</li>
           </ul>
         </div>
       </div>

@@ -14,7 +14,7 @@ const { adminOnly } = require('../middleware/access');
 
 const router = Router();
 
-const SUPPORTED_PROVIDERS = new Set(['anthropic', 'openai']);
+const SUPPORTED_PROVIDERS = new Set(['anthropic', 'openai', 'openrouter']);
 
 // Rows from the list/get queries carry joined ai_models columns aliased
 // ai_provider / ai_label so the UI can render "OpenAI — My key" without a

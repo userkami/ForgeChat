@@ -59,7 +59,7 @@ wired by the compose file. To override anything, create a root `.env` next to
 - `HTTP_PORT` — host port for the UI (default `8080`)
 - `JWT_SECRET` / `FORGECRM_ENCRYPTION_KEY` — pin specific values instead of the auto-generated ones (don't change the encryption key after data is encrypted)
 - `ADMIN_EMAIL` + `ADMIN_PASSWORD` — headless admin seed (skips the setup wizard)
-- `META_APP_SECRET`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_*` — optional feature keys
+- `META_APP_SECRET`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `GOOGLE_*` — optional feature keys
 - WhatsApp accounts themselves are connected in the UI (Settings → WhatsApp), not via env.
 
 ## 4. Database

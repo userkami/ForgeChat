@@ -9,7 +9,7 @@
 
 const pool = require('../db');
 
-const SUPPORTED_PROVIDERS = new Set(['anthropic', 'openai']);
+const SUPPORTED_PROVIDERS = new Set(['anthropic', 'openai', 'openrouter']);
 
 // Lightweight typed error so routers can map status → HTTP code.
 class ApiError extends Error {

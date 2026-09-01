@@ -547,6 +547,18 @@ async function buildMessageHistory({ waAccountId, contactNumber, limit, currentI
   return history;
 }
 
+// Server-wide env var that supplies a key for a provider when no registry row
+// is bound (agents with ai_model_id = NULL). Registry keys always win.
+const ENV_KEY_BY_PROVIDER = {
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+};
+
+function envKeyForProvider(provider) {
+  return ENV_KEY_BY_PROVIDER[provider] || `${String(provider).toUpperCase()}_API_KEY`;
+}
+
 // Provider + key now come from the agent's referenced ai_models registry row
 // (joined as ai_provider / ai_api_key_encrypted). The registry key wins; if the
 // row has none (shouldn't happen — the route requires a key) or the agent has no
@@ -554,8 +566,9 @@ async function buildMessageHistory({ waAccountId, contactNumber, limit, currentI
 function pickApiKey(agent) {
   const fromRegistry = decrypt(agent.ai_api_key_encrypted);
   if (fromRegistry) return fromRegistry;
-  if (agent.ai_provider === 'anthropic') return process.env.ANTHROPIC_API_KEY || '';
-  if (agent.ai_provider === 'openai')    return process.env.OPENAI_API_KEY || '';
+  if (agent.ai_provider === 'anthropic')   return process.env.ANTHROPIC_API_KEY || '';
+  if (agent.ai_provider === 'openai')      return process.env.OPENAI_API_KEY || '';
+  if (agent.ai_provider === 'openrouter')  return process.env.OPENROUTER_API_KEY || '';
   return '';
 }
 
@@ -719,7 +732,7 @@ function withContactContext(systemPrompt, contactNumber) {
  */
 async function runAgent({ agentId, contactNumber, inboundMessageId, inboundText }) {
   const { rows: agentRows } = await pool.query(
-    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted
+    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted, am.base_url AS ai_base_url
        FROM coexistence.agents a
        LEFT JOIN coexistence.ai_models am ON am.id = a.ai_model_id
       WHERE a.id = $1`,
@@ -733,7 +746,7 @@ async function runAgent({ agentId, contactNumber, inboundMessageId, inboundText 
 
   const apiKey = pickApiKey(agent);
   if (!apiKey) {
-    throw new Error(`No API key for provider '${agent.ai_provider}'. Add it under Integrations → AI Models, or set ${agent.ai_provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'} in backend/.env.`);
+    throw new Error(`No API key for provider '${agent.ai_provider}'. Add it under Integrations → AI Models, or set ${envKeyForProvider(agent.ai_provider)} in backend/.env.`);
   }
 
   // Voice notes: when the agent has transcription on and the inbound is audio
@@ -818,6 +831,7 @@ async function runAgent({ agentId, contactNumber, inboundMessageId, inboundText 
       onStep,
       model: agent.llm_model,
       apiKey,
+      baseUrl: agent.ai_base_url || undefined,
       maxIterations: Math.max(1, Math.min(20, agent.max_tool_iterations || 6)),
     });
 
@@ -901,7 +915,7 @@ async function runAgent({ agentId, contactNumber, inboundMessageId, inboundText 
  */
 async function runAgentTest({ agentId, messages }) {
   const { rows: agentRows } = await pool.query(
-    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted
+    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted, am.base_url AS ai_base_url
        FROM coexistence.agents a
        LEFT JOIN coexistence.ai_models am ON am.id = a.ai_model_id
       WHERE a.id = $1`,
@@ -914,7 +928,7 @@ async function runAgentTest({ agentId, messages }) {
 
   const apiKey = pickApiKey(agent);
   if (!apiKey) {
-    throw new Error(`No API key for provider '${agent.ai_provider}'. Add it under Integrations → AI Models, or set ${agent.ai_provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'} in backend/.env.`);
+    throw new Error(`No API key for provider '${agent.ai_provider}'. Add it under Integrations → AI Models, or set ${envKeyForProvider(agent.ai_provider)} in backend/.env.`);
   }
 
   // `collected` gathers the media groups the agent "sends" so the live preview
@@ -956,6 +970,7 @@ async function runAgentTest({ agentId, messages }) {
     onStep,
     model: agent.llm_model,
     apiKey,
+    baseUrl: agent.ai_base_url || undefined,
     maxIterations: Math.max(1, Math.min(20, agent.max_tool_iterations || 6)),
   });
 
@@ -996,7 +1011,7 @@ async function runAgentTest({ agentId, messages }) {
 // used by the in-app test chat's mic button.
 async function transcribeForAgent({ agentId, filePath }) {
   const { rows } = await pool.query(
-    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted
+    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted, am.base_url AS ai_base_url
        FROM coexistence.agents a
        LEFT JOIN coexistence.ai_models am ON am.id = a.ai_model_id
       WHERE a.id = $1`,
@@ -1016,7 +1031,7 @@ async function transcribeForAgent({ agentId, filePath }) {
 // close-summary sweeper (services/agentCloseSummary.js).
 async function runCloseSummary({ agentId, waNumber, contactNumber }) {
   const { rows } = await pool.query(
-    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted
+    `SELECT a.*, am.provider AS ai_provider, am.api_key_encrypted AS ai_api_key_encrypted, am.base_url AS ai_base_url
        FROM coexistence.agents a
        LEFT JOIN coexistence.ai_models am ON am.id = a.ai_model_id
       WHERE a.id = $1`,
@@ -1052,6 +1067,7 @@ async function runCloseSummary({ agentId, waNumber, contactNumber }) {
       onStep: async () => {},
       model: agent.llm_model,
       apiKey,
+      baseUrl: agent.ai_base_url || undefined,
       maxIterations: Math.max(1, Math.min(20, agent.max_tool_iterations || 6)),
       conversationKey: `${agent.id}:${contactNumber}:close`,
       contactNumber,

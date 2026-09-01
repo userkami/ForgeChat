@@ -24,9 +24,19 @@ async function runWithTools({
   onStep,
   model,
   apiKey,
+  baseUrl,
+  headers,
   maxIterations,
 }) {
-  const client = new OpenAI({ apiKey });
+  // `baseUrl` lets OpenAI-compatible gateways (OpenRouter, Moonshot/SiliconFlow
+  // via a custom base_url on the ai_models row, self-hosted proxies, …) reuse
+  // this same tool-call loop. `headers` adds extra default headers (e.g.
+  // OpenRouter's HTTP-Referer / X-OpenRouter-Title for leaderboard attribution).
+  const client = new OpenAI({
+    apiKey,
+    ...(baseUrl ? { baseURL: baseUrl } : {}),
+    ...(headers && Object.keys(headers).length > 0 ? { defaultHeaders: headers } : {}),
+  });
   const oaiTools = toOpenAITools(tools);
 
   const history = [

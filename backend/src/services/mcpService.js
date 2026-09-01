@@ -21,8 +21,23 @@ const MODEL_CATALOG = {
     { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
     { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
   ],
+  openrouter: [
+    { value: 'openrouter/free', label: 'Free Models Router (OpenRouter)' },
+    { value: 'openai/gpt-4.1-mini', label: 'GPT-4.1 mini (OpenAI)' },
+    { value: 'openai/gpt-4.1', label: 'GPT-4.1 (OpenAI)' },
+    { value: 'openai/gpt-4o-mini', label: 'GPT-4o mini (OpenAI)' },
+    { value: 'openai/gpt-4-turbo', label: 'GPT-4 Turbo (OpenAI)' },
+    { value: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6 (Anthropic)' },
+    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5 (Anthropic)' },
+    { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct (Meta)' },
+    { value: 'deepseek/deepseek-chat', label: 'DeepSeek V3 (DeepSeek)' },
+    { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (Google)' },
+    { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Google)' },
+    { value: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2 24B (Mistral)' },
+    { value: 'qwen/qwen-plus', label: 'Qwen Plus (Alibaba)' },
+  ],
 };
-const PROVIDER_LABELS = { anthropic: 'Anthropic Claude', openai: 'OpenAI', claude_code: 'Claude Code' };
+const PROVIDER_LABELS = { anthropic: 'Anthropic Claude', openai: 'OpenAI', openrouter: 'OpenRouter', claude_code: 'Claude Code' };
 const CAPABILITY_KEYS = ['discovery', 'create_agent', 'update_agent', 'manage_tools', 'delete'];
 
 /* --------------------------- tables + settings --------------------------- */

@@ -7,9 +7,10 @@
 // (util/crypto.js) and never returned in plaintext except via ?reveal=1 on the
 // single-row GET, which is gated to admins.
 //
-// v1 supports the two providers the agent engine has tool-use adapters for:
-// Anthropic and OpenAI. The exact model (e.g. gpt-4o-mini) is chosen per-agent
-// in the agent editor — this registry only stores the provider + credential.
+// v1 supports the providers the agent engine has tool-use adapters for:
+// Anthropic, OpenAI, and OpenRouter (OpenRouter reuses the OpenAI adapter via
+// its OpenAI-compatible endpoint). The exact model is chosen per-agent in the
+// agent editor — this registry only stores the provider + credential.
 
 const { Router } = require('express');
 const pool = require('../db');
@@ -18,8 +19,8 @@ const { adminOnly } = require('../middleware/access');
 
 const router = Router();
 
-const SUPPORTED = new Set(['anthropic', 'openai']);
-const PROVIDER_LABELS = { anthropic: 'Anthropic Claude', openai: 'OpenAI' };
+const SUPPORTED = new Set(['anthropic', 'openai', 'openrouter']);
+const PROVIDER_LABELS = { anthropic: 'Anthropic Claude', openai: 'OpenAI', openrouter: 'OpenRouter' };
 
 // Listing models is needed by the agent editor, which non-admin operators with
 // agent access may open — so list/get(masked) only require authentication.
@@ -37,6 +38,7 @@ function shape(row, { reveal = false } = {}) {
     provider: row.provider,
     providerLabel: PROVIDER_LABELS[row.provider] || row.provider,
     label: row.label || null,
+    baseUrl: row.base_url || null,
     apiKeyMasked: maskSecret(apiKey || ''),
     apiKey: reveal ? (apiKey || '') : undefined,
     createdAt: row.created_at,
@@ -73,7 +75,7 @@ router.get('/ai-models/:id', authed, async (req, res) => {
   }
 });
 
-// Create — admin only. Body: { provider, apiKey, label? }
+// Create — admin only. Body: { provider, apiKey, label?, baseUrl? }
 router.post('/ai-models', adminOnly, async (req, res) => {
   try {
     const b = req.body || {};
@@ -83,13 +85,13 @@ router.post('/ai-models', adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'provider and apiKey are required' });
     }
     if (!SUPPORTED.has(provider)) {
-      return res.status(400).json({ error: "provider must be 'anthropic' or 'openai'" });
+      return res.status(400).json({ error: "provider must be 'anthropic', 'openai', or 'openrouter'" });
     }
     const { rows } = await pool.query(
-      `INSERT INTO coexistence.ai_models (provider, label, api_key_encrypted, available_models)
-       VALUES ($1, $2, $3, '[]'::jsonb)
+      `INSERT INTO coexistence.ai_models (provider, label, api_key_encrypted, available_models, base_url)
+       VALUES ($1, $2, $3, '[]'::jsonb, $4)
        RETURNING *`,
-      [provider, b.label?.trim() || null, encrypt(apiKey)],
+      [provider, b.label?.trim() || null, encrypt(apiKey), b.baseUrl?.trim() || null],
     );
     res.status(201).json(shape(rows[0]));
   } catch (err) {
@@ -112,11 +114,12 @@ router.put('/ai-models/:id', adminOnly, async (req, res) => {
     if (b.provider !== undefined) {
       const provider = String(b.provider).trim().toLowerCase();
       if (!SUPPORTED.has(provider)) {
-        return res.status(400).json({ error: "provider must be 'anthropic' or 'openai'" });
+        return res.status(400).json({ error: "provider must be 'anthropic', 'openai', or 'openrouter'" });
       }
       push('provider', provider);
     }
     if (b.label !== undefined) push('label', b.label?.trim() || null);
+    if (b.baseUrl !== undefined) push('base_url', b.baseUrl?.trim() || null);
     if (b.apiKey !== undefined) {
       const key = String(b.apiKey).trim();
       if (!key) return res.status(400).json({ error: 'apiKey cannot be empty — omit it to keep the current key' });
