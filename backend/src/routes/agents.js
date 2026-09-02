@@ -272,8 +272,10 @@ router.post('/agents', adminOnly, async (req, res) => {
     // Drafts never take live traffic.
     const isActive = status === 'active' ? !!b.isActive : false;
 
-    // Trigger config.
-    const triggerMode = b.triggerMode === 'keyword' ? 'keyword' : 'any';
+    // Trigger config. 'new' ("New conversations only") is honored too — the UI
+    // offers it and agentRouter gates on it. Older builds silently coerced it
+    // to 'any', which made the option do nothing on this save path.
+    const triggerMode = ['keyword', 'new'].includes(b.triggerMode) ? b.triggerMode : 'any';
     const triggerKeyword = typeof b.triggerKeyword === 'string' ? b.triggerKeyword.trim().slice(0, 200) : '';
     if (status === 'active' && triggerMode === 'keyword' && !triggerKeyword) {
       return res.status(400).json({ error: 'A keyword-triggered agent needs a keyword.' });
@@ -344,8 +346,11 @@ router.put('/agents/:id', adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'An active agent needs a connected AI model and a model selection.' });
     }
 
-    // A keyword-triggered agent that's going live needs a keyword.
-    const effTrigMode = b.triggerMode !== undefined ? (b.triggerMode === 'keyword' ? 'keyword' : 'any') : (cur.trigger_mode || 'any');
+    // A keyword-triggered agent that's going live needs a keyword. ('new' needs
+    // none — it engages on the contact's first-ever inbound message.)
+    const effTrigMode = b.triggerMode !== undefined
+      ? (['keyword', 'new'].includes(b.triggerMode) ? b.triggerMode : 'any')
+      : (cur.trigger_mode || 'any');
     const effTrigKeyword = b.triggerKeyword !== undefined ? String(b.triggerKeyword || '').trim() : (cur.trigger_keyword || '');
     if ((effStatus === 'active' || effIsActive) && effTrigMode === 'keyword' && !effTrigKeyword) {
       return res.status(400).json({ error: 'A keyword-triggered agent needs a keyword.' });
