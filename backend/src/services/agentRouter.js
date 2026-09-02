@@ -27,6 +27,18 @@ function matchesKeyword(messageBody, keyword, matchType, caseSensitive) {
   }
 }
 
+// One concise line per declined message. Without this, a routing skip is
+// invisible: the agent_runs row is only created after the queue worker picks
+// the job up, so "agent enabled but no runs in the UI" can't be told apart
+// from a queue outage. Greppable prefix: `[agentRouter] skip: <reason>`.
+function skip(reason, record, extra = '') {
+  console.log(
+    `[agentRouter] skip: ${reason}${extra ? ` — ${extra}` : ''}` +
+    ` wa=${record?.wa_number || '?'} contact=${record?.contact_number || '?'} msg=${record?.message_id || '?'}`,
+  );
+  return null;
+}
+
 /**
  * Look up the active agent (if any) for the WhatsApp account that received
  * `record`, and enqueue a run. Returns the run job's metadata or null.
@@ -51,7 +63,9 @@ async function routeIfActive(record) {
   // running the agent on the literal placeholder string. Images CAN carry a
   // real caption (message_body), so an image's caption still counts as text.
   const hasText = !isAudio && !!(record.message_body && record.message_body.trim());
-  if (!hasText && !isAudio && !isImage) return null; // text, voice note, or image
+  if (!hasText && !isAudio && !isImage) {
+    return skip(`unsupported_type:${record.message_type || 'unknown'}`, record);
+  }
 
   const { rows } = await pool.query(
     `SELECT a.id, a.wa_account_id, a.trigger_mode, a.trigger_keyword,
@@ -66,7 +80,7 @@ async function routeIfActive(record) {
       LIMIT 1`,
     [record.wa_number || '', record.phone_number_id || ''],
   );
-  if (rows.length === 0) return null;
+  if (rows.length === 0) return skip('no_active_agent_for_number', record);
 
   const agent = rows[0];
 
@@ -74,17 +88,22 @@ async function routeIfActive(record) {
   // stays silent until someone clicks "Return to bot".
   const { isConversationPaused } = require('./agentHandoff');
   if (await isConversationPaused(record.wa_number, record.contact_number)) {
+    console.log(`[agentRouter] skip: paused_for_human — agent=${agent.id} wa=${record.wa_number} contact=${record.contact_number} (click "Return to bot" in the chat to re-enable)`);
     return { agentId: agent.id, skipped: 'paused_for_human' };
   }
 
   // A voice note only runs when the agent has transcription enabled (the worker
   // turns it into text via Whisper). Otherwise the agent stays text-only.
-  if (isAudio && !hasText && !agent.transcribe_audio) return null;
+  if (isAudio && !hasText && !agent.transcribe_audio) {
+    return skip('voice_note_without_transcribe_audio', record, `agent=${agent.id}`);
+  }
 
   // A caption-less image only runs when the agent accepts images (the worker
   // sends the picture to the vision model). An image WITH a caption can still
   // run text-only even when accept_images is off.
-  if (isImage && !hasText && !agent.accept_images) return null;
+  if (isImage && !hasText && !agent.accept_images) {
+    return skip('captionless_image_without_accept_images', record, `agent=${agent.id}`);
+  }
 
   // Trigger gating.
   //  'any'     = run on every inbound.
@@ -125,7 +144,14 @@ async function routeIfActive(record) {
           LIMIT 1`,
         [agent.id, record.contact_number, windowMin],
       );
-      if (recent.length === 0) return null; // not a fresh engagement and no live session
+      if (recent.length === 0) {
+        // Not a fresh engagement and no live session — the agent stays silent.
+        const detail = triggerMode === 'keyword'
+          ? `keyword='${agent.trigger_keyword || ''}' match=${agent.trigger_match_type || 'contains'}`
+          : 'brand-new conversations only';
+        return skip(`trigger_not_engaged:${triggerMode}`, record,
+          `agent=${agent.id} ${detail}; no run in the last ${windowMin}m`);
+      }
     }
   }
 
@@ -134,6 +160,7 @@ async function routeIfActive(record) {
   if (agent.handoff_enabled && hasText) {
     const { matchesAnyHandoffKeyword, performHandoff } = require('./agentHandoff');
     if (matchesAnyHandoffKeyword(record.message_body, agent.handoff_keywords)) {
+      console.log(`[agentRouter] handoff: keyword — agent=${agent.id} wa=${record.wa_number} contact=${record.contact_number}`);
       await performHandoff({
         agentId: agent.id,
         handoffUserIds: agent.handoff_user_ids,
@@ -152,6 +179,7 @@ async function routeIfActive(record) {
     inboundMessageId: record.message_id || null,
     inboundText: hasText ? record.message_body : null,
   });
+  console.log(`[agentRouter] routed: agent=${agent.id} contact=${record.contact_number} msg=${record.message_id || '?'}`);
   return { agentId: agent.id };
 }
 
